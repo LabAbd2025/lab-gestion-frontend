@@ -16,7 +16,7 @@ const tiemposPorTipo = {
   "ESTUDIO DE EXCURSIÓN (MENOS ESTABLE)": [],
 };
 
-// Descripción de los tiempos en meses, exactamente como en la tabla
+// Descripción de los tiempos en meses
 const descripcionTiempos = {
   "ESTABILIDAD NATURAL (ESTABLE)": {
     T0: "0 meses", T1: "6 meses", T2: "12 meses", T3: "24 meses",
@@ -77,7 +77,16 @@ const TablaFrecuenciaProducto = ({ productoId, tipoEstudio }) => {
 
   const tabla = parametros.map(({ key, label }) => {
     const cantidad = frecuencia?.[key] || 0;
-    const celdas = tiempos.map(() => cantidad);
+
+    const ultimoIndexValido = tiempos.findLastIndex((t) => t !== "Extra");
+
+    const celdas = tiempos.map((tiempo, index) => {
+      if (key === "pruebas_microbiologicas") {
+        return index === 0 || index === ultimoIndexValido ? cantidad : 0;
+      }
+      return cantidad;
+    });
+
     const totalFila = celdas.reduce((a, b) => a + b, 0);
     return { label, cantidad, celdas, totalFila };
   });
