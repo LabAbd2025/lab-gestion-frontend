@@ -199,82 +199,90 @@ const ProtocoloExportarPDF = ({
       doc.text("13. Frecuencia de Muestreo y Cantidad de Muestras Ingresadas al Estudio", 12, ySpecs);
       doc.setFont(undefined, "normal");
 
-// ⏱️ Obtener los tiempos correctos según el tipo de estudio
-const tipoCompleto = `${tipoEstudio} (${clasificacion})`;
+      // ⏱️ Obtener los tiempos correctos según el tipo de estudio
+      const tipoCompleto = `${tipoEstudio} (${clasificacion})`;
 
-const tiempos = Object.keys(tiemposPorTipo[tipoCompleto] || {}).filter(t => t !== "").sort((a, b) => {
-  const orden = ["T0", "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "Extra"];
-  return orden.indexOf(a) - orden.indexOf(b);
-});
+      const tiempos = Object.keys(tiemposPorTipo[tipoCompleto] || {}).filter(t => t !== "").sort((a, b) => {
+        const orden = ["T0", "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "Extra"];
+        return orden.indexOf(a) - orden.indexOf(b);
+      });
 
-// 🧪 Parametros a mostrar en filas
-const parametros = [
-  { key: "aspecto", label: "Aspecto" },
-  { key: "hermeticidad", label: "Hermeticidad" },
-  { key: "ph", label: "pH" },
-  { key: "valoracion", label: "Valoración" },
-  { key: "particulas_visibles", label: "Partículas visibles" },
-  { key: "pruebas_microbiologicas", label: "Pruebas microbiológicas" },
-  { key: "rectificacion", label: "Rectificación" },
-];
+      // 🧪 Parametros a mostrar en filas
+      const parametros = [
+        { key: "aspecto", label: "Aspecto" },
+        { key: "hermeticidad", label: "Hermeticidad" },
+        { key: "ph", label: "pH" },
+        { key: "valoracion", label: "Valoración" },
+        { key: "particulas_visibles", label: "Partículas visibles" },
+        { key: "pruebas_microbiologicas", label: "Pruebas microbiológicas" },
+        { key: "rectificacion", label: "Rectificación" },
+      ];
 
-// 🧾 Encabezados
-const encabezado = [
-  "Especificación",
-  "# de muestra (Env.)",
-  ...tiempos.map(t => `${t} (${tiemposPorTipo[tipoCompleto][t]})`),
-  "Sub-Total"
-];
+      // 🧾 Encabezados
+      const encabezado = [
+        "Especificación",
+        "# de muestra (Env.)",
+        ...tiempos.map(t => `${t} (${tiemposPorTipo[tipoCompleto][t]})`),
+        "Sub-Total"
+      ];
 
-// 🧮 Cuerpo: duplicamos valores por cada tiempo
-const cuerpo = parametros.map(({ key, label }) => {
-  const cantidad = frecuencia?.[key] ?? 0;
-  const valores = tiempos.map(() => cantidad); // Duplica como en el frontend
-  const subtotal = valores.reduce((a, b) => a + b, 0);
-  return [
-    { content: label },
-    { content: cantidad },
-    ...valores.map(v => ({ content: v })),
-    { content: subtotal }
-  ];
-});
+      // 🧮 Cuerpo: aplica lógica especial para "pruebas_microbiologicas"
+      const cuerpo = parametros.map(({ key, label }) => {
+        const cantidad = frecuencia?.[key] ?? 0;
+        const ultimoIndexValido = tiempos.findLastIndex(t => t !== "Extra");
 
-// ➕ Fila: Muestras por tiempo (suma columnas)
-const muestrasPorTiempo = tiempos.map((_, colIdx) =>
-  cuerpo.reduce((sum, fila) => sum + (parseInt(fila[colIdx + 2]?.content) || 0), 0)
-);
-cuerpo.push([
-  { content: "Muestras por tiempo:", colSpan: 2, styles: { fontStyle: 'bold', fillColor: [230, 230, 250] } },
-  ...muestrasPorTiempo.map(v => ({ content: v, styles: { fontStyle: 'bold', fillColor: [230, 230, 250] } })),
-  { content: "", styles: { fillColor: [230, 230, 250] } }
-]);
+        const valores = tiempos.map((_, index) => {
+          if (key === "pruebas_microbiologicas") {
+            return index === 0 || index === ultimoIndexValido ? cantidad : 0;
+          }
+          return cantidad;
+        });
 
-// ➕ Fila: Total por lote
-const totalLote = muestrasPorTiempo.reduce((a, b) => a + b, 0);
-cuerpo.push([
-  { content: "Total por lote:", colSpan: 2, styles: { fontStyle: 'bold', fillColor: [210, 210, 240] } },
-  ...Array(tiempos.length).fill({ content: "", styles: { fillColor: [210, 210, 240] } }),
-  { content: totalLote, styles: { fontStyle: 'bold', fillColor: [210, 210, 240] } }
-]);
+        const subtotal = valores.reduce((a, b) => a + b, 0);
+        return [
+          { content: label },
+          { content: cantidad },
+          ...valores.map(v => ({ content: v })),
+          { content: subtotal }
+        ];
+      });
 
-// 🖨️ Imprimir la tabla
-autoTable(doc, {
-  startY: ySpecs + 5,
-  head: [encabezado],
-  body: cuerpo,
-  styles: {
-    fontSize: 7,
-    halign: 'center',
-    valign: 'middle',
-    cellPadding: 1.5,
-  },
-  headStyles: {
-    fillColor: [180, 200, 230],
-    textColor: 0,
-    fontStyle: 'bold',
-  },
-  theme: "grid",
-});
+      // ➕ Fila: Muestras por tiempo (suma columnas)
+      const muestrasPorTiempo = tiempos.map((_, colIdx) =>
+        cuerpo.reduce((sum, fila) => sum + (parseInt(fila[colIdx + 2]?.content) || 0), 0)
+      );
+      cuerpo.push([
+        { content: "Muestras por tiempo:", colSpan: 2, styles: { fontStyle: 'bold', fillColor: [230, 230, 250] } },
+        ...muestrasPorTiempo.map(v => ({ content: v, styles: { fontStyle: 'bold', fillColor: [230, 230, 250] } })),
+        { content: "", styles: { fillColor: [230, 230, 250] } }
+      ]);
+
+      // ➕ Fila: Total por lote
+      const totalLote = muestrasPorTiempo.reduce((a, b) => a + b, 0);
+      cuerpo.push([
+        { content: "Total por lote:", colSpan: 2, styles: { fontStyle: 'bold', fillColor: [210, 210, 240] } },
+        ...Array(tiempos.length).fill({ content: "", styles: { fillColor: [210, 210, 240] } }),
+        { content: totalLote, styles: { fontStyle: 'bold', fillColor: [210, 210, 240] } }
+      ]);
+
+      // 🖨️ Imprimir la tabla
+      autoTable(doc, {
+        startY: ySpecs + 5,
+        head: [encabezado],
+        body: cuerpo,
+        styles: {
+          fontSize: 7,
+          halign: 'center',
+          valign: 'middle',
+          cellPadding: 1.5,
+        },
+        headStyles: {
+          fillColor: [180, 200, 230],
+          textColor: 0,
+          fontStyle: 'bold',
+        },
+        theme: "grid",
+      });
 
       const yFinal = doc.lastAutoTable.finalY + 10;
       doc.setFontSize(9);
